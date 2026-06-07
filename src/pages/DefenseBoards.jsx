@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from 'react';
 import {
-  SearchIcon,
   PlusIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -10,7 +9,30 @@ import {
   CloseIcon
 } from '../icons';
 
-function DefenseBoards({ boards, onAddBoard, onEditBoard }) {
+const AVAILABLE_LECTURERS = [
+  'Dr. Jane Doe',
+  'Prof. Mark Smith',
+  'Dr. Alan Lee',
+  'Dr. Emily Davis',
+  'Dr. Robert Chen',
+  'Prof. Alice Johnson',
+  'Dr. Lisa Wong',
+  'Dr. James Wilson',
+  'Dr. Sarah Jenkins',
+  'Dr. David Clark',
+  'Prof. Tom Cruise',
+  'Nguyễn Văn Hải',
+  'Trần Thị Lan',
+  'Lê Quang Minh',
+  'Phạm Văn Nam',
+  'Nguyễn Thị Mai',
+  'Đặng Hoàng Long',
+  'Vũ Thị Hồng',
+  'Hoàng Quốc Việt'
+];
+
+
+function DefenseBoards({ boards, groups = [], onAddBoard, onEditBoard }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('active'); // active filter pill by default
   const [currentPage, setCurrentPage] = useState(1);
@@ -27,6 +49,11 @@ function DefenseBoards({ boards, onAddBoard, onEditBoard }) {
   const [formMember1, setFormMember1] = useState('');
   const [formMember2, setFormMember2] = useState('');
 
+  // Dropdown states for group assignment
+  const [formSelectedGroups, setFormSelectedGroups] = useState([]);
+  const [groupDropdownOpen, setGroupDropdownOpen] = useState(false);
+  const [groupSearchQuery, setGroupSearchQuery] = useState('');
+
   // Items per page to match the screenshot ("Showing 1 to 3 of 12 boards")
   const itemsPerPage = 3;
 
@@ -38,11 +65,14 @@ function DefenseBoards({ boards, onAddBoard, onEditBoard }) {
     setFormBoardId(`HB-24A-${paddedNum}`);
     setFormSize('5 Members');
     setFormPresident('');
-    setFormGroups(3);
+    setFormGroups(0);
     setFormStatus('active');
     setFormSecretary('');
     setFormMember1('');
     setFormMember2('');
+    setFormSelectedGroups([]);
+    setGroupSearchQuery('');
+    setGroupDropdownOpen(false);
     setEditingBoard(null);
     setIsModalOpen(true);
   };
@@ -58,6 +88,13 @@ function DefenseBoards({ boards, onAddBoard, onEditBoard }) {
     setFormSecretary(board.secretary || '');
     setFormMember1(board.member1 || '');
     setFormMember2(board.member2 || '');
+    
+    // Lấy danh sách nhóm đã được gán vào hội đồng này
+    const boardGroups = groups.filter(g => g.assignedBoard === board.id).map(g => g.id);
+    setFormSelectedGroups(boardGroups);
+    setGroupSearchQuery('');
+    setGroupDropdownOpen(false);
+    
     setIsModalOpen(true);
   };
 
@@ -87,7 +124,7 @@ function DefenseBoards({ boards, onAddBoard, onEditBoard }) {
         initials: presidentInitials,
         color: editingBoard ? editingBoard.president.color : randomColor
       },
-      groups: Number(formGroups),
+      groups: formSelectedGroups.length, // Cập nhật số lượng nhóm tự động
       status: formStatus,
       secretary: formSecretary,
       member1: formMember1,
@@ -95,11 +132,71 @@ function DefenseBoards({ boards, onAddBoard, onEditBoard }) {
     };
 
     if (editingBoard) {
-      onEditBoard(boardData);
+      onEditBoard(boardData, formSelectedGroups);
     } else {
-      onAddBoard(boardData);
+      onAddBoard(boardData, formSelectedGroups);
     }
     setIsModalOpen(false);
+  };
+
+  // Logic lọc các nhóm có thể gán cho hội đồng hiện tại
+  const availableGroups = useMemo(() => {
+    return groups.filter(g => {
+      const isAssignedToThis = editingBoard && g.assignedBoard === editingBoard.id;
+      const isUnscheduled = !g.assignedBoard || g.assignedBoard === '';
+      return isAssignedToThis || isUnscheduled;
+    });
+  }, [groups, editingBoard]);
+
+  const filteredAvailableGroups = useMemo(() => {
+    return availableGroups.filter(g => {
+      const query = groupSearchQuery.toLowerCase();
+      return g.id.toLowerCase().includes(query) || g.title.toLowerCase().includes(query);
+    });
+  }, [availableGroups, groupSearchQuery]);
+
+  const handleGroupSelectToggle = (groupId) => {
+    setFormSelectedGroups(prev =>
+      prev.includes(groupId)
+        ? prev.filter(id => id !== groupId)
+        : [...prev, groupId]
+    );
+  };
+
+  const handlePresidentChange = (value) => {
+    setFormPresident(value);
+    if (value !== '') {
+      if (formSecretary === value) setFormSecretary('');
+      if (formMember1 === value) setFormMember1('');
+      if (formMember2 === value) setFormMember2('');
+    }
+  };
+
+  const handleSecretaryChange = (value) => {
+    setFormSecretary(value);
+    if (value !== '') {
+      if (formPresident === value) setFormPresident('');
+      if (formMember1 === value) setFormMember1('');
+      if (formMember2 === value) setFormMember2('');
+    }
+  };
+
+  const handleMember1Change = (value) => {
+    setFormMember1(value);
+    if (value !== '') {
+      if (formPresident === value) setFormPresident('');
+      if (formSecretary === value) setFormSecretary('');
+      if (formMember2 === value) setFormMember2('');
+    }
+  };
+
+  const handleMember2Change = (value) => {
+    setFormMember2(value);
+    if (value !== '') {
+      if (formPresident === value) setFormPresident('');
+      if (formSecretary === value) setFormSecretary('');
+      if (formMember1 === value) setFormMember1('');
+    }
   };
 
   // Filter & Search Logic
@@ -154,7 +251,6 @@ function DefenseBoards({ boards, onAddBoard, onEditBoard }) {
       <div className="filter-bar">
         <div className="filter-left">
           <div className="search-input-wrapper">
-            <SearchIcon className="search-box-icon" />
             <input
               type="text"
               placeholder="Search boards by ID or faculty name..."
@@ -350,26 +446,28 @@ function DefenseBoards({ boards, onAddBoard, onEditBoard }) {
 
               <div className="form-item">
                 <label htmlFor="board-president">Chủ tịch Hội đồng (Họ và Tên)</label>
-                <input
-                  type="text"
+                <select
                   id="board-president"
-                  placeholder="Ví dụ: Dr. Jane Doe"
                   value={formPresident}
-                  onChange={(e) => setFormPresident(e.target.value)}
+                  onChange={(e) => handlePresidentChange(e.target.value)}
                   required
-                />
+                >
+                  <option value="">-- Chọn Chủ tịch --</option>
+                  {AVAILABLE_LECTURERS.map(lecturer => (
+                    <option key={lecturer} value={lecturer}>{lecturer}</option>
+                  ))}
+                </select>
               </div>
 
               <div className="form-group-row">
                 <div className="form-item">
                   <label htmlFor="board-groups">Số nhóm đồ án gán vào</label>
                   <input
-                    type="number"
+                    type="text"
                     id="board-groups"
-                    min="1"
-                    max="10"
-                    value={formGroups}
-                    onChange={(e) => setFormGroups(e.target.value)}
+                    value={`${formSelectedGroups.length} nhóm`}
+                    readOnly
+                    style={{ backgroundColor: '#f1f5f9', cursor: 'not-allowed' }}
                   />
                 </div>
 
@@ -387,41 +485,128 @@ function DefenseBoards({ boards, onAddBoard, onEditBoard }) {
                 </div>
               </div>
 
+              {/* Ô TÌM KIẾM ĐA CHỌN HỘI ĐỒNG */}
+              <div className="form-item" style={{ marginBottom: '8px' }}>
+                <label>Chọn các nhóm phân vào Hội đồng này</label>
+                <div className="dropdown-select-container">
+                  {groupDropdownOpen && (
+                    <div 
+                      style={{ position: 'fixed', inset: 0, zIndex: 90 }} 
+                      onClick={() => setGroupDropdownOpen(false)}
+                    />
+                  )}
+                  <div 
+                    className="dropdown-select-box" 
+                    onClick={() => setGroupDropdownOpen(!groupDropdownOpen)}
+                    style={{ zIndex: 95 }}
+                  >
+                    {formSelectedGroups.length === 0 ? (
+                      <span className="dropdown-select-placeholder">Nhấp để chọn nhóm đồ án...</span>
+                    ) : (
+                      formSelectedGroups.map(groupId => (
+                        <span key={groupId} className="group-tag" onClick={(e) => e.stopPropagation()}>
+                          {groupId}
+                          <button 
+                            type="button" 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleGroupSelectToggle(groupId);
+                            }}
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))
+                    )}
+                  </div>
+                  
+                  {groupDropdownOpen && (
+                    <div className="dropdown-select-popover" style={{ zIndex: 100 }}>
+                      <input 
+                        type="text" 
+                        className="dropdown-search-input"
+                        placeholder="Tìm theo Mã nhóm hoặc Đề tài..."
+                        value={groupSearchQuery}
+                        onChange={(e) => setGroupSearchQuery(e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <div className="dropdown-items-list">
+                        {filteredAvailableGroups.length > 0 ? (
+                          filteredAvailableGroups.map((group) => {
+                            const isChecked = formSelectedGroups.includes(group.id);
+                            return (
+                              <label 
+                                key={group.id} 
+                                className="dropdown-item-label"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <input 
+                                  type="checkbox" 
+                                  checked={isChecked}
+                                  onChange={() => handleGroupSelectToggle(group.id)}
+                                />
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                  <strong style={{ fontSize: '13px', color: '#0f172a' }}>{group.id}</strong>
+                                  <span style={{ fontSize: '11.5px', color: '#64748b' }}>{group.title}</span>
+                                </div>
+                              </label>
+                            );
+                          })
+                        ) : (
+                          <span style={{ padding: '12px', textAlign: 'center', color: '#94a3b8', fontSize: '12.5px', fontStyle: 'italic' }}>
+                            Không tìm thấy nhóm phù hợp!
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
               <div className="form-divider">Thành phần ban chấm điểm</div>
 
               <div className="form-item">
                 <label htmlFor="board-secretary">Thư ký hội đồng (Họ tên / Email)</label>
-                <input
-                  type="text"
+                <select
                   id="board-secretary"
-                  placeholder="Ví dụ: Prof. Alice Johnson"
                   value={formSecretary}
-                  onChange={(e) => setFormSecretary(e.target.value)}
-                />
+                  onChange={(e) => handleSecretaryChange(e.target.value)}
+                >
+                  <option value="">-- Chọn Thư ký --</option>
+                  {AVAILABLE_LECTURERS.map(lecturer => (
+                    <option key={lecturer} value={lecturer}>{lecturer}</option>
+                  ))}
+                </select>
               </div>
 
               <div className="form-group-row">
                 <div className="form-item">
                   <label htmlFor="board-member1">Thành viên Uỷ viên 1</label>
-                  <input
-                    type="text"
+                  <select
                     id="board-member1"
-                    placeholder="Tên giảng viên..."
                     value={formMember1}
-                    onChange={(e) => setFormMember1(e.target.value)}
-                  />
+                    onChange={(e) => handleMember1Change(e.target.value)}
+                  >
+                    <option value="">-- Chọn Uỷ viên 1 --</option>
+                    {AVAILABLE_LECTURERS.map(lecturer => (
+                      <option key={lecturer} value={lecturer}>{lecturer}</option>
+                    ))}
+                  </select>
                 </div>
 
                 {formSize === '5 Members' && (
                   <div className="form-item">
                     <label htmlFor="board-member2">Thành viên Uỷ viên 2</label>
-                    <input
-                      type="text"
+                    <select
                       id="board-member2"
-                      placeholder="Tên giảng viên..."
                       value={formMember2}
-                      onChange={(e) => setFormMember2(e.target.value)}
-                    />
+                      onChange={(e) => handleMember2Change(e.target.value)}
+                    >
+                      <option value="">-- Chọn Uỷ viên 2 --</option>
+                      {AVAILABLE_LECTURERS.map(lecturer => (
+                        <option key={lecturer} value={lecturer}>{lecturer}</option>
+                      ))}
+                    </select>
                   </div>
                 )}
               </div>

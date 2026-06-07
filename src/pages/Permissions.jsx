@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import {
   SyncIcon,
-  SearchIcon,
   FilterIcon,
   KeyIcon,
   CloseIcon,
@@ -239,7 +238,6 @@ function Permissions() {
       <div className="filter-bar" style={{ padding: '14px 20px', marginBottom: '16px' }}>
         <div className="filter-left" style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
           <div className="search-input-wrapper" style={{ width: '420px', backgroundColor: '#f8fafc' }}>
-            <SearchIcon className="search-box-icon" />
             <input
               type="text"
               placeholder="Tìm kiếm theo Tên giảng viên, Email, Bộ môn..."

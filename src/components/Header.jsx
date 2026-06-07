@@ -1,6 +1,6 @@
 import React from 'react';
 import userAvatar from '../assets/user_avatar.png';
-import { SearchIcon, BellIcon } from '../icons';
+import { BellIcon } from '../icons';
 
 function Header({ searchPlaceholder = "Search sessions..." }) {
   return (
@@ -22,11 +22,10 @@ function Header({ searchPlaceholder = "Search sessions..." }) {
         alignItems: 'center',
         backgroundColor: '#f1f5f9',
         borderRadius: '8px',
-        paddingLeft: '12px',
+        paddingLeft: '16px',
         width: '320px',
         height: '38px'
       }}>
-        <SearchIcon style={{ color: '#94a3b8', width: '16px', height: '16px', marginRight: '8px' }} />
         <input 
           type="text" 
           placeholder={searchPlaceholder} 
